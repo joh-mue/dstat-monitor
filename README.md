@@ -38,6 +38,8 @@ Parse output file:
 
 ## Flink and kmeans
 
+Requires flink >= 0.7
+
 Replace $FLINK in line 18 of dmon with path to your flink directory including the flink homedirectory, e.g. /home/user/flink-0.9.0
 
 Run everything:

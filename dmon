@@ -15,8 +15,8 @@ HAS_CPUTEMP=0
 HAS_CPUFREQ=0
 
 #replace $pwd with <path_to_flink> to be able to run the dmon from any working directory 
-# e.g. /home/user/flink-0.9.0
-FLINK=$pwd
+# e.g. '/home/user/flink-0.9.0'
+FLINK='/home/jmue/code/flink-0.9.0'
 
 run_kmeans_job()
 {
@@ -324,12 +324,12 @@ do
 		verbose=1
 		shift
 		;;
-	-h|--help)
-		print_usage
-		;;
 	-f|--flink)
 		flink=1
 		shift
+		;;
+	-h|--help)
+		print_usage
 		;;
 	esac
 	shift
@@ -415,7 +415,6 @@ case "$cmd" in
 			run_kmeans_job
 		else
 			echo  "JobManager is not running. Start flink or run dmon -f start [logfile[duration]]"
-			exit
 		fi
 		;;
 	*)
