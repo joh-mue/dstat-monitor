@@ -46,7 +46,7 @@ Run everything:
 	
 	dmon kmeans output.txt
 
-	Flink will be started, the monitor will be started, the kmeans example input data generated and the kmeans job submitted to flink. Afterwards flink and the monitor will be stopped.
+Flink will be started, the monitor will be started, the kmeans example input data generated and the kmeans job submitted to flink. Afterwards flink and the monitor will be stopped.
 
 Step-by-step:
 
