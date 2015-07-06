@@ -14,7 +14,9 @@ flink=0
 HAS_CPUTEMP=0
 HAS_CPUFREQ=0
 
-FLINK='/home/jmue/code/flink-0.9.0'
+#replace $pwd with <path_to_flink> to be able to run the dmon from any working directory 
+# e.g. /home/user/flink-0.9.0
+FLINK=$pwd
 
 run_kmeans_job()
 {
@@ -51,7 +53,7 @@ run_kmeans_job()
 start_flink()
 {
 	#start flink
-	pids=`jps | grep JobManager | awk '{print $1}'`
+	pid=`jps | grep JobManager | awk '{print $1}'`
 	if [ -n "$pids" ]
 	then
 		echo "JobManager is already running ($pids) ..."
@@ -351,7 +353,6 @@ case "$cmd" in
 		if [ $flink -eq 1 ]
 		then
 			start_flink
-			run_kmeans_job
 		fi
 		if [ $verbose -eq 1 ]
 		then
@@ -401,13 +402,21 @@ case "$cmd" in
 		else
 			dstat_run $logfile $interval $count > /dev/null
 		fi
-		echo "does it get here"
 		run_kmeans_job
 		sleep 0.5
 		dstat_status
 		
 		dstat_stop
 		stop_flink
+		;;
+	"run")
+		if [ -n "$pids" ]
+		then
+			run_kmeans_job
+		else
+			echo  "JobManager is not running. Start flink or run dmon -f start [logfile[duration]]"
+			exit
+		fi
 		;;
 	*)
 		print_usage
