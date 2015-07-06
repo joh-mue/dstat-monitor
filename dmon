@@ -9,9 +9,67 @@
 dstat=/usr/bin/dstat
 verbose=0
 interval=1
+flink=0
 
 HAS_CPUTEMP=0
 HAS_CPUFREQ=0
+
+FLINK='/home/jmue/code/flink-0.9.0'
+
+run_kmeans_job()
+{
+	#does the kmeans directory exist?
+	if [ ! -d $FLINK/kmeans ]
+	then
+		echo "Creating kmeans directory."
+		mkdir $FLINK/kmeans
+	fi
+
+	if [ -d $FLINK/kmeans/points ]
+	then
+		echo "Input data already exists"
+	else
+		#Generate points for kmeans example
+		echo "Generating input data for kmeans example"
+		java -cp $FLINK/examples/flink-java-examples-0.9.0-KMeans.jar:$FLINK/lib/flink-dist-0.9.0.jar \
+		org.apache.flink.examples.java.clustering.util.KMeansDataGenerator \
+		-points 500 -k 10 -stddev 0.08 -output $FLINK/kmeans
+	fi
+
+	#is the output file there? If yes delete it
+	if [ -f $FLINK/kmeans/result ]
+	then
+    	echo "Results file from previous run exists and will be deleted."
+    	rm $FLINK/kmeans/result
+	fi
+
+	echo "Running flink job"
+	#run the job
+	/home/jmue/code/flink-0.9.0/bin/flink run /home/jmue/code/flink-0.9.0/examples/flink-java-examples-0.9.0-KMeans.jar file:///home/jmue/code/flink-0.9.0/kmeans/points file:///home/jmue/code/flink-0.9.0/kmeans/centers file:///home/jmue/code/flink-0.9.0/kmeans/result 10
+}
+
+start_flink()
+{
+	#start flink
+	pids=`jps | grep JobManager | awk '{print $1}'`
+	if [ -n "$pids" ]
+	then
+		echo "JobManager is already running ($pids) ..."
+	else
+		/home/jmue/code/flink-0.9.0/bin/start-local.sh
+		echo  "Starting local JobManager. Waiting 30 seconds until it's up."
+		sleep 20 #TODO: check if JobManager is up
+		echo "20sec"
+		sleep 10
+	fi
+}
+
+stop_flink()
+{
+	# stop flink
+	echo "Stopping flink"
+	$FLINK/bin/stop-local.sh
+}
 
 dstat_check()
 {
@@ -234,15 +292,17 @@ print_usage()
 	echo "$0 status                         Verify monitor status"
 	echo "$0 stop                           Stop monitor"
 	echo "$0 parse logfile.txt              Convert log file to a R-friendly format"
+	echo "$0 kmeans  						Start flink, start monitor, run kmeans job, stop monitor, stop flink"
 	echo
 	echo "Options:"
 	echo " -i, --interval INTERVAL Specify monitoring interval in seconds (default: 1)"
 	echo " -v, --verbose           Make the operation more talkative"
 	echo " -h, --help              Print this help message"
+	echo " -f, --flink 			   Run the Flink kmeans example"
 	exit 0
 }
 
-args=$(getopt -l "searchpath:" -o "i:vh" -- "$@")
+args=$(getopt -l "searchpath:" -o "i:fvh" -- "$@")
 
 eval set -- "$args"
 
@@ -265,6 +325,10 @@ do
 	-h|--help)
 		print_usage
 		;;
+	-f|--flink)
+		flink=1
+		shift
+		;;
 	esac
 	shift
 done
@@ -284,6 +348,11 @@ case "$cmd" in
 			count=`echo $duration/$interval | bc`
 		fi
 		dstat_check
+		if [ $flink -eq 1 ]
+		then
+			start_flink
+			run_kmeans_job
+		fi
 		if [ $verbose -eq 1 ]
 		then
 			dstat_run $logfile $interval $count
@@ -295,6 +364,10 @@ case "$cmd" in
 		;;
 	"stop")
 		dstat_stop
+		if [ $flink -eq 1 ]
+		then
+			stop_flink
+		fi
 		;;
 	"status")
 		dstat_status
@@ -307,6 +380,34 @@ case "$cmd" in
 		logfile=$2
 		dstat_check
 		dstat_parse $logfile
+		;;
+	"kmeans")
+		if [ $# -lt 2 ]
+		then
+			print_usage
+		fi
+		logfile=$2
+		count=0
+		if [ $# -eq 3 ]
+		then
+			duration=$3
+			count=`echo $duration/$interval | bc`
+		fi
+		dstat_check
+		start_flink
+		if [ $verbose -eq 1 ]
+		then
+			dstat_run $logfile $interval $count
+		else
+			dstat_run $logfile $interval $count > /dev/null
+		fi
+		echo "does it get here"
+		run_kmeans_job
+		sleep 0.5
+		dstat_status
+		
+		dstat_stop
+		stop_flink
 		;;
 	*)
 		print_usage
