@@ -16,6 +16,7 @@ HAS_CPUFREQ=0
 
 #replace $pwd with <path_to_flink> to be able to run the dmon from any working directory 
 # e.g. '/home/user/flink-0.9.0'
+#FLINK=$pwd
 FLINK='/home/jmue/code/flink-0.9.0'
 
 run_kmeans_job()
@@ -47,7 +48,7 @@ run_kmeans_job()
 
 	echo "Running flink job"
 	#run the job
-	/home/jmue/code/flink-0.9.0/bin/flink run /home/jmue/code/flink-0.9.0/examples/flink-java-examples-0.9.0-KMeans.jar file:///home/jmue/code/flink-0.9.0/kmeans/points file:///home/jmue/code/flink-0.9.0/kmeans/centers file:///home/jmue/code/flink-0.9.0/kmeans/result 10
+	$FLINK/bin/flink run $FLINK/examples/flink-java-examples-0.9.0-KMeans.jar file://$FLINK/kmeans/points file://$FLINK/code/flink-0.9.0/kmeans/centers file://$FLINK/code/flink-0.9.0/kmeans/result 10
 }
 
 start_flink()
@@ -56,13 +57,9 @@ start_flink()
 	pid=`jps | grep JobManager | awk '{print $1}'`
 	if [ -n "$pids" ]
 	then
-		echo "JobManager is already running ($pids) ..."
+		echo >&2 "JobManager is already running ($pids) ..."
 	else
-		/home/jmue/code/flink-0.9.0/bin/start-local.sh
-		echo  "Starting local JobManager. Waiting 30 seconds until it's up."
-		sleep 20 #TODO: check if JobManager is up
-		echo "20sec"
-		sleep 10
+		$FLINK/bin/start-local.sh
 	fi
 }
 
@@ -300,7 +297,7 @@ print_usage()
 	echo " -i, --interval INTERVAL Specify monitoring interval in seconds (default: 1)"
 	echo " -v, --verbose           Make the operation more talkative"
 	echo " -h, --help              Print this help message"
-	echo " -f, --flink 			   Run the Flink kmeans example"
+	echo " -f, --flink             Run the Flink kmeans example"
 	exit 0
 }
 
@@ -316,6 +313,10 @@ do
 		shift
 		break
 		;;
+	-f|--flink)
+		flink=1
+		shift
+		;;
 	-i|--interval)
 		interval=$2
 		shift
@@ -324,15 +325,11 @@ do
 		verbose=1
 		shift
 		;;
-	-f|--flink)
-		flink=1
-		shift
-		;;
 	-h|--help)
 		print_usage
 		;;
 	esac
-	shift
+#	shift
 done
 
 cmd=$1
@@ -396,6 +393,8 @@ case "$cmd" in
 		fi
 		dstat_check
 		start_flink
+		echo  "Starting local JobManager. Waiting until JobManager is up."
+		sleep 30
 		if [ $verbose -eq 1 ]
 		then
 			dstat_run $logfile $interval $count
@@ -410,7 +409,8 @@ case "$cmd" in
 		stop_flink
 		;;
 	"run")
-		if [ -n "$pids" ]
+		pid=`jps | grep JobManager | awk '{print $1}'`
+		if [ -n $pid ]
 		then
 			run_kmeans_job
 		else
